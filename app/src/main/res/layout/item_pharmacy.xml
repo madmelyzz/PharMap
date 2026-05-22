@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardPharmacy"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginVertical="6dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="3dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp">
+
+        <!-- Rank number -->
+        <TextView
+            android:id="@+id/tvRank"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/circle_blue"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- "EN HIZLI" badge -->
+        <TextView
+            android:id="@+id/tvBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/badge_background"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
+            android:textColor="#00A896"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/tvRank"
+            app:layout_constraintStart_toEndOf="@id/tvRank"
+            app:layout_constraintTop_toTopOf="@id/tvRank" />
+
+        <!-- Pharmacy name -->
+        <TextView
+            android:id="@+id/tvPharmacyName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#0D5E8A"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toStartOf="@id/btnNavigate"
+            app:layout_constraintStart_toEndOf="@id/tvRank"
+            app:layout_constraintTop_toBottomOf="@id/tvBadge" />
+
+        <!-- Address -->
+        <TextView
+            android:id="@+id/tvPharmacyAddress"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#888888"
+            android:textSize="12sp"
+            app:layout_constraintEnd_toStartOf="@id/btnNavigate"
+            app:layout_constraintStart_toStartOf="@id/tvPharmacyName"
+            app:layout_constraintTop_toBottomOf="@id/tvPharmacyName" />
+
+        <!-- Travel time -->
+        <TextView
+            android:id="@+id/tvTravelTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="#333333"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="@id/tvPharmacyName"
+            app:layout_constraintTop_toBottomOf="@id/tvPharmacyAddress" />
+
+        <!-- Distance -->
+        <TextView
+            android:id="@+id/tvDistance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:textColor="#555555"
+            android:textSize="13sp"
+            app:layout_constraintBottom_toBottomOf="@id/tvTravelTime"
+            app:layout_constraintStart_toEndOf="@id/tvTravelTime"
+            app:layout_constraintTop_toTopOf="@id/tvTravelTime" />
+
+        <!-- Traffic colour dot -->
+        <View
+            android:id="@+id/viewTrafficDot"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/circle_green"
+            app:layout_constraintBottom_toBottomOf="@id/tvTravelTime"
+            app:layout_constraintStart_toEndOf="@id/tvDistance"
+            app:layout_constraintTop_toTopOf="@id/tvTravelTime" />
+
+        <!-- Navigate button -->
+        <Button
+            android:id="@+id/btnNavigate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:backgroundTint="#0D5E8A"
+            android:text="Git"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.cardview.widget.CardView>
