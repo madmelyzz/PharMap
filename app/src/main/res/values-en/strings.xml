@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PharMap</string>
+    <string name="app_subtitle">Finds the Fastest Pharmacy on Duty</string>
+    <string name="btn_find">🏥 FIND PHARMACY</string>
+    <string name="getting_location">Getting location...</string>
+    <string name="searching_pharmacies">Searching pharmacies...</string>
+    <string name="fastest_found">Fastest route calculated!</string>
+    <string name="min">min</string>
+    <string name="no_phone">No Phone</string>
+    <string name="no_address">No Address Info</string>
+    <string name="back">Back</string>
+    <string name="back_to_home">🏠 Back to Home</string>
+    <string name="location_permission_required">🔴 Location permission is required.</string>
+    <string name="no_pharmacy_found">No pharmacies found around you.</string>
+    <string name="pharmacies_found">%1$d pharmacies found, calculating travel times...</string>
+    <string name="start_navigation">🚀 START NAVIGATION</string>
+
+    <string name="quick_locations_title">📌 My Quick Locations</string>
+    <string name="add_new_location">+ Add New Location</string>
+    <string name="saved_prescriptions">📑 My Saved Prescriptions</string>
+    <string name="add_prescription">+ Add New</string>
+    <string name="prescription_no_label">Prescription No:</string>
+    <string name="pharmacy_label">Pharmacy Name:</string>
+    <string name="medicines_label">Medicines:</string>
+    <string name="btn_delete">❌ Delete</string>
+    <string name="no_prescription">No prescriptions found.</string>
+
+    <string name="dialog_add_location">Add New Location</string>
+    <string name="hint_label">Location Title (e.g., Home, Work)</string>
+    <string name="hint_address">Full Address or District, City</string>
+    <string name="save_location">Save Location</string>
+    <string name="location_saved">Location saved successfully.</string>
+    <string name="fill_fields">Please fill all fields!</string>
+    <string name="dialog_add_prescription">Save New Prescription</string>
+    <string name="hint_prescription_code">Prescription Code</string>
+    <string name="hint_pharmacy_name">Pharmacy Name</string>
+    <string name="hint_medicines">Medicine List</string>
+    <string name="save_prescription">Save Prescription</string>
+    <string name="prescription_saved">Prescription saved successfully.</string>
+    <string name="fill_required">Please fill Prescription Code and Pharmacy Name!</string>
+    <string name="delete_prescription_title">Delete Prescription</string>
+    <string name="delete_prescription_msg">Are you sure you want to delete this prescription?</string>
+    <string name="yes_delete">Yes, Delete</string>
+    <string name="prescription_deleted">Prescription deleted.</string>
+    <string name="cancel">Cancel</string>
+    <string name="address_not_found">Address not found: </string>
+    <string name="address_no_match">Could not geocode this address.</string>
+    <string name="address_parse_error">Address parse error occurred.</string>
+
+    <string name="status_sunday">🔴 Today is Sunday: All normal pharmacies are closed. You can only visit pharmacies on duty! 🚨</string>
+    <string name="status_daytime">☀️ Daytime (09:00 - 18:00): Normal pharmacies are open right now. Listing nearest ones...</string>
+    <string name="status_night">🌙 Outside Working Hours: Only pharmacies on duty are open right now! Calculating nearest ones... 🚨</string>
+    <string name="status_default">Press button, pharmacies are being calculated...</string>
+
+    <string name="info_pharmacy_label">🏥 Pharmacy: </string>
+    <string name="info_address_label">📍 Address: </string>
+    <string name="info_phone_label">📞 Phone: </string>
+    <string name="info_eta_label">🕒 ETA: </string>
+    <string name="info_road_dist_label">🛣️ Road Distance: </string>
+    <string name="info_straight_dist_label">📏 Straight Distance: </string>
+    <string name="info_traffic_label">🚦 Traffic Status: </string>
+    <string name="info_status_label">⏰ Status: Open ✅</string>
+    <string name="fastest_label">FASTEST: </string>
+
+    <string name="traffic_fastest_not_nearest">Closest pharmacy is %1$.1f km away, but this route saves %2$d min! (Straight: %3$.1f km, Time: %4$d min)</string>
+    <string name="traffic_nearest_not_fastest">Closest pharmacy is this one (%1$.1f km, %2$d min) but there\'s a %3$d min faster alternative!</string>
+    <string name="traffic_both">Both closest and fastest! (%1$.1f km, %2$d min)</string>
+    <string name="traffic_heavy">Heavy traffic on road! (%1$.1f km, %2$d min)</string>
+    <string name="traffic_moderate">Light traffic on road! (%1$.1f km, %2$d min)</string>
+    <string name="traffic_clear">Road is clear. (%1$.1f km, %2$d min)</string>
+</resources>

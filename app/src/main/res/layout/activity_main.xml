@@ -6,21 +6,72 @@
     android:padding="16dp"
     android:background="#F5F5F5">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="PHARMAP"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:textColor="#0D5C8A"
-        android:gravity="center"
+        android:orientation="horizontal"
         android:paddingTop="24dp"
-        android:paddingBottom="8dp"/>
+        android:paddingBottom="8dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="PHARMAP"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="#0D5C8A"
+            android:paddingStart="8dp"/>
+
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="@drawable/lang_box_bg"
+            android:padding="4dp">
+
+            <TextView
+                android:id="@+id/btnLangTR"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TR"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/lang_selected_bg"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="5dp"
+                android:paddingBottom="5dp"
+                android:clickable="true"
+                android:focusable="true"/>
+
+            <TextView
+                android:id="@+id/btnLangEN"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="EN"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#0D5C8A"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="5dp"
+                android:paddingBottom="5dp"
+                android:clickable="true"
+                android:focusable="true"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
 
     <TextView
+        android:id="@+id/tvSubtitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="En Hızlı Eczaneyi Buluyor"
+        android:text="@string/app_subtitle"
         android:textSize="14sp"
         android:textColor="#666666"
         android:gravity="center"
@@ -31,15 +82,15 @@
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:backgroundTint="#0D5C8A"
-        android:text="En Yakın Eczaneyi Bul"
+        android:text="@string/btn_find"
         android:textColor="#FFFFFF"
-        android:textSize="16sp" />
+        android:textSize="16sp"/>
 
     <TextView
         android:id="@+id/tvStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Butona bas, trafik hesaplanıyor..."
+        android:text="@string/status_default"
         android:textSize="14sp"
         android:textColor="#666666"
         android:gravity="center"
@@ -91,9 +142,7 @@
                     android:lineSpacingExtra="4dp"/>
 
             </LinearLayout>
-
         </LinearLayout>
-
     </ScrollView>
 
 </LinearLayout>

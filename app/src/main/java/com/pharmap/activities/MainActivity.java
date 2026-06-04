@@ -2,6 +2,9 @@ package com.pharmap.activities;
 
 import android.Manifest;
 import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -9,6 +12,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -44,44 +48,54 @@ import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String API_KEY = "a7EqPOlXZO8JGOmbCfP4Qv9VuMwFfc42";
-    private TextView tvStatus;
-    private LinearLayout llResults;
-    private OkHttpClient client;
+    private static final String TOMTOM_API_KEY = "a7EqPOlXZO8JGOmbCfP4Qv9VuMwFfc42";
+    private static final String NOSY_API_KEY   = "e2x99ouO0lAgOmZL7xsTYco3OTtmQx2hByRba2VIOjumcC6bKEYSHZqxH0G3";
+
+    private TextView      tvStatus;
+    private LinearLayout  llResults;
+    private LinearLayout  llInfo;
+    private TextView      tvInfoTitle;
+    private TextView      tvInfoDetails;
+    private ScrollView    scrollView;
+    private LinearLayout  llMainRoot;
+    private Button        btnThemeToggle;
+    private WebView       webMapPreview;
+    private LinearLayout  llQuickLocationsContainer;
+    private LinearLayout  llPrescriptionContainer;
+    private TextView      tvListBackButton;
+
+    private OkHttpClient                client;
     private FusedLocationProviderClient fusedLocationClient;
+    private PharMapDatabase             dbHelper;
 
     private double userLat = 41.0122;
     private double userLon = 28.9760;
 
-    private LinearLayout selectedCard = null;
-    private LinearLayout llInfo;
-    private TextView tvInfoTitle;
-    private TextView tvInfoDetails;
-    private ScrollView scrollView;
-
-    // Tema Değişkenleri
     private boolean isDarkMode = false;
-    private Button btnThemeToggle;
-    private LinearLayout llMainRoot;
 
-    // Arayüz Bileşenleri
-    private WebView webMapPreview;
-    private LinearLayout llQuickLocationsContainer;
-    private LinearLayout llPrescriptionContainer;
-    private TextView tvListBackButton;
+    private LinearLayout selectedCard = null;
 
-    // SQLite Veritabanı Yardımcısı
-    private PharMapDatabase dbHelper;
-
-    private List<long[]> lastResults = new ArrayList<>();
-    private List<String> lastNames = new ArrayList<>();
-    private List<Double> lastLats = new ArrayList<>();
-    private List<Double> lastLons = new ArrayList<>();
-    private List<String> lastPhones = new ArrayList<>();
+    private final List<long[]>  lastResults   = new ArrayList<>();
+    private final List<String>  lastNames     = new ArrayList<>();
+    private final List<Double>  lastLats      = new ArrayList<>();
+    private final List<Double>  lastLons      = new ArrayList<>();
+    private final List<String>  lastPhones    = new ArrayList<>();
+    private final List<String>  lastAddresses = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // ✅ Kaydedilen dili uygula (setContentView'dan ÖNCE)
+        String savedLang = getSharedPreferences("pharmap_prefs", MODE_PRIVATE)
+                .getString("selected_language", "tr");
+        java.util.Locale locale = new java.util.Locale(savedLang);
+        java.util.Locale.setDefault(locale);
+        android.content.res.Configuration config = getResources().getConfiguration();
+        config.setLocale(locale);
+        Context langContext = createConfigurationContext(config);
+        getResources().updateConfiguration(config, langContext.getResources().getDisplayMetrics());
+
         setContentView(com.pharmap.R.layout.activity_main);
 
         tvStatus      = findViewById(com.pharmap.R.id.tvStatus);
@@ -90,16 +104,34 @@ public class MainActivity extends AppCompatActivity {
         tvInfoTitle   = findViewById(com.pharmap.R.id.tvInfoTitle);
         tvInfoDetails = findViewById(com.pharmap.R.id.tvInfoDetails);
         scrollView    = findViewById(com.pharmap.R.id.scrollView);
-
         llMainRoot    = (LinearLayout) tvStatus.getParent();
 
-        client        = new OkHttpClient();
+        client              = new OkHttpClient();
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        dbHelper            = new PharMapDatabase(this);
 
-        dbHelper = new PharMapDatabase(this);
-
-        // İlk açılışta varsayılan konumları kontrol et/ekle
         dbHelper.checkAndInsertDefaultLocations();
+
+        // ✅ Dil butonlarını bağla
+        TextView btnLangTR = findViewById(com.pharmap.R.id.btnLangTR);
+        TextView btnLangEN = findViewById(com.pharmap.R.id.btnLangEN);
+
+        if (btnLangTR != null && btnLangEN != null) {
+            if (savedLang.equals("en")) {
+                btnLangEN.setBackgroundResource(com.pharmap.R.drawable.lang_selected_bg);
+                btnLangEN.setTextColor(Color.WHITE);
+                btnLangTR.setBackground(null);
+                btnLangTR.setTextColor(Color.parseColor("#0D5C8A"));
+            } else {
+                btnLangTR.setBackgroundResource(com.pharmap.R.drawable.lang_selected_bg);
+                btnLangTR.setTextColor(Color.WHITE);
+                btnLangEN.setBackground(null);
+                btnLangEN.setTextColor(Color.parseColor("#0D5C8A"));
+            }
+
+            btnLangTR.setOnClickListener(v -> changeLanguage("tr"));
+            btnLangEN.setOnClickListener(v -> changeLanguage("en"));
+        }
 
         initListBackButton();
         showWelcomeFeaturesOnCard();
@@ -110,7 +142,7 @@ public class MainActivity extends AppCompatActivity {
             llResults.removeAllViews();
             llInfo.setVisibility(View.GONE);
             selectedCard = null;
-            tvStatus.setText("Konum alınıyor...");
+            tvStatus.setText("📍 Konum alınıyor...");
             getUserLocationThenSearch();
         });
 
@@ -123,10 +155,32 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // ✅ Dil değiştirici
+    public void changeLanguage(String languageCode) {
+        java.util.Locale newLocale = new java.util.Locale(languageCode);
+        java.util.Locale.setDefault(newLocale);
+
+        android.content.res.Configuration newConfig = getResources().getConfiguration();
+        newConfig.setLocale(newLocale);
+        Context context = createConfigurationContext(newConfig);
+        getResources().updateConfiguration(newConfig, context.getResources().getDisplayMetrics());
+
+        // SharedPreferences'a kaydet
+        getSharedPreferences("pharmap_prefs", MODE_PRIVATE)
+                .edit()
+                .putString("selected_language", languageCode)
+                .apply();
+
+        // Activity'yi yeniden başlat
+        Intent intent = getIntent();
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        finish();
+        startActivity(intent);
+    }
+
     private void showWelcomeFeaturesOnCard() {
         llResults.removeAllViews();
 
-        // 1. Canlı Harita Önizlemesi
         webMapPreview = new WebView(this);
         LinearLayout.LayoutParams mapParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 500);
@@ -141,7 +195,6 @@ public class MainActivity extends AppCompatActivity {
         loadMapUrl(userLat, userLon);
         llResults.addView(webMapPreview);
 
-        // 2. Sık Kullanılan Konumlar Bölümü
         llQuickLocationsContainer = new LinearLayout(this);
         llQuickLocationsContainer.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams qParams = new LinearLayout.LayoutParams(
@@ -157,7 +210,8 @@ public class MainActivity extends AppCompatActivity {
         tvTitle.setTextSize(14);
         tvTitle.setTypeface(null, Typeface.BOLD);
         tvTitle.setTextColor(isDarkMode ? Color.WHITE : Color.parseColor("#212121"));
-        llLocationHeader.addView(tvTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        llLocationHeader.addView(tvTitle,
+                new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
 
         TextView btnAddNewLocation = new TextView(this);
         btnAddNewLocation.setText("➕ Yeni Konum Ekle");
@@ -169,7 +223,6 @@ public class MainActivity extends AppCompatActivity {
         llLocationHeader.addView(btnAddNewLocation);
         llQuickLocationsContainer.addView(llLocationHeader);
 
-        // Konum butonlarının dikey/yatay sıralanacağı alan
         LinearLayout llButtonsRow = new LinearLayout(this);
         llButtonsRow.setOrientation(LinearLayout.VERTICAL);
         llButtonsRow.setPadding(0, 12, 0, 0);
@@ -178,7 +231,6 @@ public class MainActivity extends AppCompatActivity {
 
         loadLocationsFromDatabase();
 
-        // 3. Reçetelerim Bölümü
         llPrescriptionContainer = new LinearLayout(this);
         llPrescriptionContainer.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams pParams = new LinearLayout.LayoutParams(
@@ -194,7 +246,8 @@ public class MainActivity extends AppCompatActivity {
         tvPTitle.setTextSize(14);
         tvPTitle.setTypeface(null, Typeface.BOLD);
         tvPTitle.setTextColor(isDarkMode ? Color.WHITE : Color.parseColor("#212121"));
-        llHeaderRow.addView(tvPTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        llHeaderRow.addView(tvPTitle,
+                new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
 
         TextView btnAddPrescription = new TextView(this);
         btnAddPrescription.setText("➕ Yeni Ekle");
@@ -219,14 +272,15 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout buttonsArea = (LinearLayout) llQuickLocationsContainer.getChildAt(1);
         buttonsArea.removeAllViews();
 
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM konumlar", null);
+        SQLiteDatabase db     = dbHelper.getReadableDatabase();
+        Cursor         cursor = db.rawQuery("SELECT * FROM konumlar", null);
 
         if (cursor.moveToFirst()) {
+            int indexBaslik = cursor.getColumnIndexOrThrow("baslik");
+            int indexAdres  = cursor.getColumnIndexOrThrow("adres");
             do {
-                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
-                String label = cursor.getString(cursor.getColumnIndexOrThrow("baslik"));
-                String address = cursor.getString(cursor.getColumnIndexOrThrow("adres"));
+                String label   = cursor.getString(indexBaslik);
+                String address = cursor.getString(indexAdres);
 
                 LinearLayout itemRow = new LinearLayout(this);
                 itemRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -241,8 +295,8 @@ public class MainActivity extends AppCompatActivity {
                 tvLocButton.setTextSize(13);
                 tvLocButton.setTypeface(null, Typeface.BOLD);
                 tvLocButton.setPadding(24, 24, 24, 24);
-
-                LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+                LinearLayout.LayoutParams btnParams =
+                        new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
                 tvLocButton.setLayoutParams(btnParams);
 
                 GradientDrawable cardBg = new GradientDrawable();
@@ -250,8 +304,6 @@ public class MainActivity extends AppCompatActivity {
                 cardBg.setColor(isDarkMode ? Color.parseColor("#2D2D2D") : Color.parseColor("#F5F5F5"));
                 tvLocButton.setBackground(cardBg);
                 tvLocButton.setTextColor(isDarkMode ? Color.WHITE : Color.parseColor("#333333"));
-
-                // Tıklandığında girilen adresi koordinata çevirip arama yapan fonksiyon
                 tvLocButton.setOnClickListener(v -> searchPharmaciesByAddress(label, address));
 
                 itemRow.addView(tvLocButton);
@@ -259,47 +311,6 @@ public class MainActivity extends AppCompatActivity {
             } while (cursor.moveToNext());
         }
         cursor.close();
-    }
-
-    private void searchPharmaciesByAddress(String label, String address) {
-        if (tvListBackButton != null) tvListBackButton.setVisibility(View.VISIBLE);
-        llResults.removeAllViews();
-        llInfo.setVisibility(View.GONE);
-        selectedCard = null;
-        tvStatus.setText(label + " adresi sorgulanıyor...");
-
-        // TomTom Geocoding API ile adresi koordinatlara çeviriyoruz
-        String geocodeUrl = "https://api.tomtom.com/search/2/geocode/" + address + ".json?key=" + API_KEY + "&limit=1";
-
-        Request request = new Request.Builder().url(geocodeUrl).build();
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> tvStatus.setText("Adres bulunamadı: " + e.getMessage()));
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                try {
-                    JSONObject json = new JSONObject(response.body().string());
-                    JSONArray results = json.getJSONArray("results");
-                    if (results.length() > 0) {
-                        JSONObject position = results.getJSONObject(0).getJSONObject("position");
-                        userLat = position.getDouble("lat");
-                        userLon = position.getDouble("lon");
-
-                        runOnUiThread(() -> {
-                            tvStatus.setText(label + " adresi doğrulandı. Nöbetçi eczaneler hesaplanıyor...");
-                            searchNearbyPharmacies();
-                        });
-                    } else {
-                        runOnUiThread(() -> tvStatus.setText("Girdiğiniz adres TomTom haritasında eşleşmedi!"));
-                    }
-                } catch (Exception e) {
-                    runOnUiThread(() -> tvStatus.setText("Adres çözümleme hatası!"));
-                }
-            }
-        });
     }
 
     private void showAddLocationDialog() {
@@ -319,25 +330,21 @@ public class MainActivity extends AppCompatActivity {
         layout.addView(etAddress);
 
         builder.setView(layout);
-
         builder.setPositiveButton("Konumu Kaydet", (dialog, which) -> {
-            String label = etLabel.getText().toString().trim();
+            String label   = etLabel.getText().toString().trim();
             String address = etAddress.getText().toString().trim();
-
             if (!label.isEmpty() && !address.isEmpty()) {
-                SQLiteDatabase db = dbHelper.getWritableDatabase();
-                ContentValues values = new ContentValues();
+                SQLiteDatabase db     = dbHelper.getWritableDatabase();
+                ContentValues  values = new ContentValues();
                 values.put("baslik", label);
                 values.put("adres", address);
-
                 db.insert("konumlar", null, values);
-                Toast.makeText(MainActivity.this, "Yeni konum başarıyla kaydedildi!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Yeni konum başarıyla kaydedildi!", Toast.LENGTH_SHORT).show();
                 loadLocationsFromDatabase();
             } else {
-                Toast.makeText(MainActivity.this, "Lütfen tüm alanları doldurun!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Lütfen tüm alanları doldurun!", Toast.LENGTH_SHORT).show();
             }
         });
-
         builder.setNegativeButton("İptal", null);
         builder.show();
     }
@@ -347,17 +354,20 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout listArea = (LinearLayout) llPrescriptionContainer.getChildAt(1);
         listArea.removeAllViews();
 
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM receteler ORDER BY id DESC", null);
+        SQLiteDatabase db     = dbHelper.getReadableDatabase();
+        Cursor         cursor = db.rawQuery("SELECT * FROM receteler ORDER BY id DESC", null);
 
         if (cursor.moveToFirst()) {
+            int indexId      = cursor.getColumnIndexOrThrow("id");
+            int indexKod     = cursor.getColumnIndexOrThrow("recete_kod");
+            int indexEczane  = cursor.getColumnIndexOrThrow("eczane_adi");
+            int indexIlaclar = cursor.getColumnIndexOrThrow("ilac_listesi");
             do {
-                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
-                String kod = cursor.getString(cursor.getColumnIndexOrThrow("recete_kod"));
-                String eczane = cursor.getString(cursor.getColumnIndexOrThrow("eczane_adi"));
-                String ilaclar = cursor.getString(cursor.getColumnIndexOrThrow("ilac_listesi"));
+                int    id      = cursor.getInt(indexId);
+                String kod     = cursor.getString(indexKod);
+                String eczane  = cursor.getString(indexEczane);
+                String ilaclar = cursor.getString(indexIlaclar);
 
-                // Üst taşıyıcı satır (Kart + Sil butonu yan yana durabilsin diye)
                 LinearLayout cardRow = new LinearLayout(this);
                 cardRow.setOrientation(LinearLayout.HORIZONTAL);
                 cardRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -366,12 +376,11 @@ public class MainActivity extends AppCompatActivity {
                 rowParams.setMargins(0, 12, 0, 0);
                 cardRow.setLayoutParams(rowParams);
 
-                // Reçete Kartı Bilgileri
                 LinearLayout card = new LinearLayout(this);
                 card.setOrientation(LinearLayout.VERTICAL);
                 card.setPadding(24, 20, 24, 20);
-                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-                card.setLayoutParams(params);
+                card.setLayoutParams(
+                        new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
 
                 GradientDrawable cardBg = new GradientDrawable();
                 cardBg.setCornerRadius(16f);
@@ -398,7 +407,6 @@ public class MainActivity extends AppCompatActivity {
 
                 cardRow.addView(card);
 
-                // YENİ: Reçete Kartının Yanına Eklenen Tekli SİL İşareti / Butonu
                 TextView btnDelete = new TextView(this);
                 btnDelete.setText("❌ Sil");
                 btnDelete.setTextColor(Color.parseColor("#D32F2F"));
@@ -406,20 +414,18 @@ public class MainActivity extends AppCompatActivity {
                 btnDelete.setTextSize(13);
                 btnDelete.setPadding(20, 20, 20, 20);
                 btnDelete.setGravity(Gravity.CENTER);
-
-                btnDelete.setOnClickListener(v -> {
-                    new AlertDialog.Builder(MainActivity.this)
-                            .setTitle("Reçeteyi Sil")
-                            .setMessage("Bu reçete kaydını kalıcı olarak silmek istediğinize emin misiniz?")
-                            .setPositiveButton("Evet, Sil", (dialog, which) -> {
-                                SQLiteDatabase writeDb = dbHelper.getWritableDatabase();
-                                writeDb.delete("receteler", "id = ?", new String[]{String.valueOf(id)});
-                                Toast.makeText(MainActivity.this, "Reçete silindi.", Toast.LENGTH_SHORT).show();
-                                loadPrescriptionsFromDatabase(); // Listeyi yenile
-                            })
-                            .setNegativeButton("İptal", null)
-                            .show();
-                });
+                btnDelete.setOnClickListener(v ->
+                        new AlertDialog.Builder(this)
+                                .setTitle("Reçeteyi Sil")
+                                .setMessage("Bu reçete kaydını kalıcı olarak silmek istediğinize emin misiniz?")
+                                .setPositiveButton("Evet, Sil", (dialog, which) -> {
+                                    dbHelper.getWritableDatabase()
+                                            .delete("receteler", "id = ?", new String[]{String.valueOf(id)});
+                                    Toast.makeText(this, "Reçete silindi.", Toast.LENGTH_SHORT).show();
+                                    loadPrescriptionsFromDatabase();
+                                })
+                                .setNegativeButton("İptal", null)
+                                .show());
 
                 cardRow.addView(btnDelete);
                 listArea.addView(cardRow);
@@ -443,11 +449,11 @@ public class MainActivity extends AppCompatActivity {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(40, 20, 40, 20);
 
-        final EditText etKod = new EditText(this);
+        final EditText etKod     = new EditText(this);
         etKod.setHint("Reçete Kodu veya Numarası");
         layout.addView(etKod);
 
-        final EditText etEczane = new EditText(this);
+        final EditText etEczane  = new EditText(this);
         etEczane.setHint("Eczane Adı");
         layout.addView(etEczane);
 
@@ -456,27 +462,22 @@ public class MainActivity extends AppCompatActivity {
         layout.addView(etIlaclar);
 
         builder.setView(layout);
-
         builder.setPositiveButton("Sisteme Kaydet", (dialog, which) -> {
-            String kod = etKod.getText().toString().trim();
-            String eczane = etEczane.getText().toString().trim();
+            String kod     = etKod.getText().toString().trim();
+            String eczane  = etEczane.getText().toString().trim();
             String ilaclar = etIlaclar.getText().toString().trim();
-
             if (!kod.isEmpty() && !eczane.isEmpty()) {
-                SQLiteDatabase db = dbHelper.getWritableDatabase();
                 ContentValues values = new ContentValues();
                 values.put("recete_kod", kod);
                 values.put("eczane_adi", eczane);
                 values.put("ilac_listesi", ilaclar);
-
-                db.insert("receteler", null, values);
-                Toast.makeText(MainActivity.this, "Reçete başarıyla kaydedildi!", Toast.LENGTH_SHORT).show();
+                dbHelper.getWritableDatabase().insert("receteler", null, values);
+                Toast.makeText(this, "Reçete başarıyla kaydedildi!", Toast.LENGTH_SHORT).show();
                 loadPrescriptionsFromDatabase();
             } else {
-                Toast.makeText(MainActivity.this, "Lütfen gerekli alanları doldurun!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Lütfen gerekli alanları doldurun!", Toast.LENGTH_SHORT).show();
             }
         });
-
         builder.setNegativeButton("İptal", null);
         builder.show();
     }
@@ -488,18 +489,15 @@ public class MainActivity extends AppCompatActivity {
         tvListBackButton.setTypeface(null, Typeface.BOLD);
         tvListBackButton.setPadding(24, 16, 16, 16);
         tvListBackButton.setVisibility(View.GONE);
-
         tvListBackButton.setOnClickListener(v -> {
             tvListBackButton.setVisibility(View.GONE);
             llInfo.setVisibility(View.GONE);
             selectedCard = null;
             lastResults.clear();
-            tvStatus.setText("Butona bas, trafik hesaplanıyor...");
-
+            tvStatus.setText("Butona bas, nöbetçi eczaneler hesaplanıyor...");
             showWelcomeFeaturesOnCard();
             scrollView.smoothScrollTo(0, 0);
         });
-
         llMainRoot.addView(tvListBackButton, llMainRoot.indexOfChild(tvStatus));
     }
 
@@ -527,42 +525,63 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initThemeButton() {
-        btnThemeToggle = new Button(this);
-        btnThemeToggle.setText("🌙 Koyu Tema");
-        btnThemeToggle.setTextSize(12);
-        btnThemeToggle.setGravity(Gravity.CENTER);
-
-        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+        LinearLayout themeLayout = new LinearLayout(this);
+        themeLayout.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        btnParams.gravity = Gravity.END;
-        btnParams.setMargins(16, 16, 16, 16);
-        btnThemeToggle.setLayoutParams(btnParams);
+        layoutParams.gravity = Gravity.END;
+        layoutParams.setMargins(16, 16, 16, 16);
+        themeLayout.setLayoutParams(layoutParams);
+        themeLayout.setPadding(8, 8, 8, 8);
 
+
+
+        // 🌙 Ay butonu
+        btnThemeToggle = new Button(this);
+        btnThemeToggle.setText("🌙");
+        btnThemeToggle.setTextSize(14);
+        btnThemeToggle.setPadding(8, 2, 8, 2);
+        btnThemeToggle.setBackground(null);
         btnThemeToggle.setOnClickListener(v -> {
-            isDarkMode = !isDarkMode;
-            applyTheme();
+            if (!isDarkMode) {
+                isDarkMode = true;
+                applyTheme();
+            }
         });
 
-        llMainRoot.addView(btnThemeToggle, 0);
+        // ☀️ Güneş butonu
+        Button btnLight = new Button(this);
+        btnLight.setText("☀️");
+        btnLight.setTextSize(14);
+        btnLight.setPadding(8, 2, 8, 2);
+        btnLight.setBackground(null);
+        btnLight.setOnClickListener(v -> {
+            if (isDarkMode) {
+                isDarkMode = false;
+                applyTheme();
+            }
+        });
+
+        themeLayout.addView(btnThemeToggle);
+        themeLayout.addView(btnLight);
+        llMainRoot.addView(themeLayout, 0);
         applyTheme();
     }
 
     private void applyTheme() {
-        if (tvListBackButton != null) tvListBackButton.setTextColor(isDarkMode ? Color.WHITE : Color.parseColor("#3498db"));
+        if (tvListBackButton != null)
+            tvListBackButton.setTextColor(isDarkMode ? Color.WHITE : Color.parseColor("#3498db"));
+
+        // Tema container background
+
 
         if (isDarkMode) {
-            btnThemeToggle.setText("☀️ Açık Tema");
-            btnThemeToggle.setBackgroundColor(Color.parseColor("#333333"));
-            btnThemeToggle.setTextColor(Color.WHITE);
             llMainRoot.setBackgroundColor(Color.parseColor("#121212"));
             tvStatus.setTextColor(Color.WHITE);
             llInfo.setBackgroundColor(Color.parseColor("#1E1E1E"));
             tvInfoTitle.setTextColor(Color.WHITE);
             tvInfoDetails.setTextColor(Color.parseColor("#BBBBBB"));
         } else {
-            btnThemeToggle.setText("🌙 Koyu Tema");
-            btnThemeToggle.setBackgroundColor(Color.parseColor("#E0E0E0"));
-            btnThemeToggle.setTextColor(Color.BLACK);
             llMainRoot.setBackgroundColor(Color.WHITE);
             tvStatus.setTextColor(Color.parseColor("#212121"));
             llInfo.setBackgroundColor(Color.WHITE);
@@ -579,10 +598,52 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void searchPharmaciesByAddress(String label, String address) {
+        if (tvListBackButton != null) tvListBackButton.setVisibility(View.VISIBLE);
+        llResults.removeAllViews();
+        llInfo.setVisibility(View.GONE);
+        selectedCard = null;
+        tvStatus.setText("📍 " + label + " adresi sorgulanıyor...");
+
+        String geocodeUrl = "https://api.tomtom.com/search/2/geocode/"
+                + Uri.encode(address) + ".json?key=" + TOMTOM_API_KEY + "&limit=1";
+
+        Request request = new Request.Builder().url(geocodeUrl).build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> tvStatus.setText("Adres bulunamadı: " + e.getMessage()));
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                try {
+                    JSONObject json    = new JSONObject(response.body().string());
+                    JSONArray  results = json.getJSONArray("results");
+                    if (results.length() > 0) {
+                        JSONObject position = results.getJSONObject(0).getJSONObject("position");
+                        userLat = position.getDouble("lat");
+                        userLon = position.getDouble("lon");
+                        runOnUiThread(() -> {
+                            tvStatus.setText("✅ " + label + " konumu doğrulandı. Nöbetçi eczaneler aranıyor...");
+                            searchNearbyDutyPharmacies();
+                        });
+                    } else {
+                        runOnUiThread(() -> tvStatus.setText("⚠️ Girdiğiniz adres haritada eşleşmedi!"));
+                    }
+                } catch (Exception e) {
+                    runOnUiThread(() -> tvStatus.setText("Adres çözümleme hatası!"));
+                } finally {
+                    response.close();
+                }
+            }
+        });
+    }
+
     private void getUserLocationThenSearch() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
-            tvStatus.setText("Konum izni gerekli!");
+            tvStatus.setText("⚠️ Konum izni gerekli!");
             return;
         }
         fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
@@ -590,62 +651,76 @@ public class MainActivity extends AppCompatActivity {
                 userLat = location.getLatitude();
                 userLon = location.getLongitude();
             }
-            tvStatus.setText("Yakındaki eczaneler aranıyor...");
-            searchNearbyPharmacies();
+            tvStatus.setText("🏥 Nöbetçi eczaneler aranıyor...");
+            searchNearbyDutyPharmacies();
         });
     }
 
-    private void searchNearbyPharmacies() {
-        String url = "https://api.tomtom.com/search/2/poiSearch/pharmacy.json"
-                + "?key=" + API_KEY
-                + "&lat=" + userLat
-                + "&lon=" + userLon
-                + "&radius=3000"
-                + "&limit=5";
+    private void searchNearbyDutyPharmacies() {
+        String nosyUrl = "https://www.nosyapi.com/apiv2/service/pharmacies-on-duty/locations"
+                + "?latitude=" + userLat
+                + "&longitude=" + userLon
+                + "&apiKey=" + NOSY_API_KEY;
 
-        Request request = new Request.Builder().url(url).build();
+        Request request = new Request.Builder().url(nosyUrl).build();
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> tvStatus.setText("Arama hatası: " + e.getMessage()));
+                runOnUiThread(() ->
+                        tvStatus.setText("🔴 NosyAPI bağlantı hatası: " + e.getMessage()));
             }
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 try {
-                    String body = response.body().string();
+                    String     body = response.body().string();
                     JSONObject json = new JSONObject(body);
-                    JSONArray results = json.getJSONArray("results");
+
+                    if (!"success".equals(json.optString("status"))) {
+                        String msg = json.optString("messageTR", "Bilinmeyen hata");
+                        runOnUiThread(() -> tvStatus.setText("🔴 NosyAPI: " + msg));
+                        return;
+                    }
+
+                    JSONArray data = json.getJSONArray("data");
 
                     lastNames.clear();
                     lastLats.clear();
                     lastLons.clear();
                     lastPhones.clear();
+                    lastAddresses.clear();
 
-                    for (int i = 0; i < results.length(); i++) {
-                        JSONObject item = results.getJSONObject(i);
-                        String name = item.getJSONObject("poi").getString("name");
-                        double lat  = item.getJSONObject("position").getDouble("lat");
-                        double lon  = item.getJSONObject("position").getDouble("lon");
+                    int limit = Math.min(data.length(), 5);
+                    for (int i = 0; i < limit; i++) {
+                        JSONObject item = data.getJSONObject(i);
+                        lastNames.add(item.getString("pharmacyName"));
+                        lastLats.add(item.getDouble("latitude"));
+                        lastLons.add(item.getDouble("longitude"));
+                        lastAddresses.add(item.optString("address", "Adres bilgisi yok"));
 
-                        JSONObject poi = item.optJSONObject("poi");
-                        String phone = "İletişim numarası bulunamadı";
-                        if (poi != null && poi.has("phone")) {
-                            phone = poi.getString("phone");
-                        }
-
-                        lastNames.add(name);
-                        lastLats.add(lat);
-                        lastLons.add(lon);
+                        String phone = item.optString("phone", "").trim();
+                        if (phone.isEmpty()) phone = item.optString("phone2", "").trim();
+                        if (phone.isEmpty()) phone = "İletişim numarası bulunamadı";
                         lastPhones.add(phone);
                     }
 
-                    runOnUiThread(() -> tvStatus.setText(
-                            lastNames.size() + " eczane bulundu, trafik hesaplanıyor..."));
+                    if (limit == 0) {
+                        runOnUiThread(() ->
+                                tvStatus.setText("ℹ️ Bu konumda nöbetçi eczane bulunamadı."));
+                        return;
+                    }
+
+                    final int found = limit;
+                    runOnUiThread(() ->
+                            tvStatus.setText("🏥 " + found + " nöbetçi eczane bulundu, trafik hesaplanıyor..."));
+
                     calculateTravelTimes(lastNames, lastLats, lastLons);
 
                 } catch (Exception e) {
-                    runOnUiThread(() -> tvStatus.setText("Veri hatası: " + e.getMessage()));
+                    runOnUiThread(() ->
+                            tvStatus.setText("🔴 Veri ayrıştırma hatası: " + e.getMessage()));
+                } finally {
+                    response.close();
                 }
             }
         });
@@ -658,30 +733,32 @@ public class MainActivity extends AppCompatActivity {
             String url = "https://api.tomtom.com/routing/1/calculateRoute/"
                     + userLat + "," + userLon + ":"
                     + lats.get(i) + "," + lons.get(i)
-                    + "/json?key=" + API_KEY + "&traffic=true";
+                    + "/json?key=" + TOMTOM_API_KEY + "&traffic=true";
 
             Request request = new Request.Builder().url(url).build();
             client.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
-                    runOnUiThread(() -> tvStatus.setText("Hata: " + e.getMessage()));
+                    runOnUiThread(() -> tvStatus.setText("Rota hatası: " + e.getMessage()));
                 }
 
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
                     try {
-                        JSONObject json  = new JSONObject(response.body().string());
-                        JSONArray routes = json.getJSONArray("routes");
-                        JSONObject sum   = routes.getJSONObject(0).getJSONObject("summary");
-                        long travelTime  = sum.getLong("travelTimeInSeconds");
-                        long roadMetres  = sum.getLong("lengthInMeters");
+                        JSONObject json   = new JSONObject(response.body().string());
+                        JSONArray  routes = json.getJSONArray("routes");
+                        JSONObject sum    = routes.getJSONObject(0).getJSONObject("summary");
+                        long travelTime   = sum.getLong("travelTimeInSeconds");
+                        long roadMetres   = sum.getLong("lengthInMeters");
 
                         double theta = userLon - lons.get(index);
-                        double dist = Math.sin(Math.toRadians(userLat)) * Math.sin(Math.toRadians(lats.get(index)))
-                                + Math.cos(Math.toRadians(userLat)) * Math.cos(Math.toRadians(lats.get(index))) * Math.cos(Math.toRadians(theta));
-                        dist = Math.acos(dist);
-                        dist = Math.toDegrees(dist);
-                        dist = dist * 60 * 1.1515 * 1.609344;
+                        double dist  = Math.sin(Math.toRadians(userLat))
+                                * Math.sin(Math.toRadians(lats.get(index)))
+                                + Math.cos(Math.toRadians(userLat))
+                                * Math.cos(Math.toRadians(lats.get(index)))
+                                * Math.cos(Math.toRadians(theta));
+                        dist = Math.acos(Math.max(-1.0, Math.min(1.0, dist)));
+                        dist = Math.toDegrees(dist) * 60 * 1.1515 * 1.609344;
                         long straightKm100 = Math.round(dist * 100);
 
                         synchronized (lastResults) {
@@ -691,36 +768,40 @@ public class MainActivity extends AppCompatActivity {
                             }
                         }
                     } catch (Exception e) {
-                        runOnUiThread(() -> tvStatus.setText("Hata: " + e.getMessage()));
+                        runOnUiThread(() -> tvStatus.setText("Rota hesaplama hatası: " + e.getMessage()));
+                    } finally {
+                        response.close();
                     }
                 }
             });
         }
     }
 
-    private void showResults(List<long[]> results, List<String> names, List<Double> lats, List<Double> lons) {
+    private void showResults(List<long[]> results, List<String> names,
+                             List<Double> lats, List<Double> lons) {
+
         results.sort((a, b) -> Long.compare(a[1], b[1]));
 
-        int nearestIdx = 0;
-        long minDist = Long.MAX_VALUE;
+        int  nearestIdx = 0;
+        long minDist    = Long.MAX_VALUE;
         for (int i = 0; i < results.size(); i++) {
             if (results.get(i)[3] < minDist) {
-                minDist = results.get(i)[3];
+                minDist    = results.get(i)[3];
                 nearestIdx = i;
             }
         }
         final int nearest = nearestIdx;
 
         runOnUiThread(() -> {
-            tvStatus.setText("En hızlı eczane bulundu! ✅");
+            tvStatus.setText("✅ En hızlı nöbetçi eczane bulundu!");
             llResults.removeAllViews();
 
             for (int i = 0; i < results.size(); i++) {
-                long[] r      = results.get(i);
-                int  origIdx  = (int) r[0];
-                long minutes  = r[1] / 60;
-                double roadKm = r[2] / 1000.0;
-                double distKm = r[3] / 100.0;
+                long[]  r         = results.get(i);
+                int     origIdx   = (int) r[0];
+                long    minutes   = r[1] / 60;
+                double  roadKm    = r[2] / 1000.0;
+                double  distKm    = r[3] / 100.0;
                 boolean isFastest = (i == 0);
                 boolean isNearest = (i == nearest);
 
@@ -732,7 +813,7 @@ public class MainActivity extends AppCompatActivity {
                     double nearestKm  = results.get(nearest)[3] / 100.0;
                     long   diff       = Math.round(nearestMin - minutes);
                     trafficMsg = String.format(
-                            "Daha yakın bir eczane var (%.1f km) ama trafik yoğun, %d dk daha uzun sürer.\n"
+                            "Daha yakın bir nöbetçi eczane var (%.1f km) ama trafik yoğun, %d dk daha uzun sürer.\n"
                                     + "Bu eczane %.1f km uzakta ama trafik akıcı — sadece %d dk!",
                             nearestKm, diff, distKm, minutes);
                     trafficEmoji = "🟢";
@@ -740,25 +821,24 @@ public class MainActivity extends AppCompatActivity {
                     double fastestMin = results.get(0)[1] / 60.0;
                     long   diff       = Math.round(minutes - fastestMin);
                     trafficMsg = String.format(
-                            "En yakın eczane (%.1f km) ama trafik çok yoğun!\n"
+                            "En yakın nöbetçi eczane (%.1f km) ama trafik çok yoğun!\n"
                                     + "%d dk sürer. %d dk kazanmak için diğer eczaneyi tercih et.",
                             distKm, minutes, diff);
                     trafficEmoji = "🔴";
                 } else if (isFastest) {
-                    trafficMsg = String.format(
-                            "Hem en yakın hem en hızlı! %.1f km, %d dakika.", distKm, minutes);
+                    trafficMsg   = String.format("Hem en yakın hem en hızlı! %.1f km, %d dakika.", distKm, minutes);
                     trafficEmoji = "🟢";
                 } else {
-                    double ratio = roadKm / distKm;
+                    double ratio = (distKm > 0) ? roadKm / distKm : 1.0;
                     if (ratio > 1.5) {
                         trafficEmoji = "🔴";
-                        trafficMsg = String.format("%.1f km uzakta, trafik yoğun — %d dk sürer.", distKm, minutes);
+                        trafficMsg   = String.format("%.1f km uzakta, trafik yoğun — %d dk sürer.", distKm, minutes);
                     } else if (ratio > 1.2) {
                         trafficEmoji = "🟡";
-                        trafficMsg = String.format("%.1f km uzakta, trafik orta — %d dk sürer.", distKm, minutes);
+                        trafficMsg   = String.format("%.1f km uzakta, trafik orta — %d dk sürer.", distKm, minutes);
                     } else {
                         trafficEmoji = "🟢";
-                        trafficMsg = String.format("%.1f km uzakta, trafik akıcı — %d dk sürer.", distKm, minutes);
+                        trafficMsg   = String.format("%.1f km uzakta, trafik akıcı — %d dk sürer.", distKm, minutes);
                     }
                 }
 
@@ -766,19 +846,15 @@ public class MainActivity extends AppCompatActivity {
                 card.setOrientation(LinearLayout.VERTICAL);
                 card.setPadding(32, 28, 32, 28);
                 LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT);
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
                 params.setMargins(16, 16, 16, 0);
                 card.setLayoutParams(params);
 
-                int defaultBgColor;
-                if (isFastest) {
-                    defaultBgColor = Color.parseColor("#3498db");
-                } else {
-                    defaultBgColor = isDarkMode
-                            ? (i % 2 == 0 ? Color.parseColor("#1F1E1E") : Color.parseColor("#2D2D2D"))
-                            : (i % 2 == 0 ? Color.parseColor("#EEEEEE") : Color.WHITE);
-                }
+                int defaultBgColor = isFastest
+                        ? Color.parseColor("#3498db")
+                        : (isDarkMode
+                        ? (i % 2 == 0 ? Color.parseColor("#1F1E1E") : Color.parseColor("#2D2D2D"))
+                        : (i % 2 == 0 ? Color.parseColor("#EEEEEE") : Color.WHITE));
 
                 GradientDrawable defaultDrawable = new GradientDrawable();
                 defaultDrawable.setColor(defaultBgColor);
@@ -788,15 +864,11 @@ public class MainActivity extends AppCompatActivity {
 
                 if (isFastest) selectedCard = card;
 
-                int textColor;
-                if (isFastest) {
-                    textColor = Color.WHITE;
-                } else {
-                    textColor = isDarkMode ? Color.WHITE : Color.parseColor("#212121");
-                }
+                int textColor = isFastest ? Color.WHITE
+                        : (isDarkMode ? Color.WHITE : Color.parseColor("#212121"));
 
                 TextView tvName = new TextView(this);
-                tvName.setText((isFastest ? "⭐ EN HIZLI — " : (i + 1) + ". ") + names.get(origIdx));
+                tvName.setText((isFastest ? "⭐ EN HIZLI NÖBETÇİ — " : (i + 1) + ". ") + names.get(origIdx));
                 tvName.setTextSize(16);
                 tvName.setTextColor(textColor);
                 tvName.setTypeface(null, Typeface.BOLD);
@@ -810,11 +882,24 @@ public class MainActivity extends AppCompatActivity {
                 tvTime.setPadding(0, 6, 0, 0);
                 card.addView(tvTime);
 
+                final String currentPhone = (origIdx < lastPhones.size())
+                        ? lastPhones.get(origIdx).trim() : "İletişim numarası yok";
                 TextView tvPhoneNum = new TextView(this);
-                tvPhoneNum.setText("📞 Telefon: " + (origIdx < lastPhones.size() ? lastPhones.get(origIdx) : "İletişim numarası yok"));
+                tvPhoneNum.setText("📞 " + currentPhone);
                 tvPhoneNum.setTextSize(13);
                 tvPhoneNum.setTextColor(textColor);
                 tvPhoneNum.setPadding(0, 4, 0, 0);
+
+                if (!currentPhone.contains("bulunamadı") && !currentPhone.contains("yok") && !currentPhone.isEmpty()) {
+                    tvPhoneNum.setOnClickListener(v -> {
+                        String cleanNumber = tvPhoneNum.getText().toString()
+                                .replace("📞", "")
+                                .replaceAll("\\s+", "");
+                        Intent intent = new Intent(Intent.ACTION_DIAL);
+                        intent.setData(Uri.parse("tel:" + cleanNumber));
+                        startActivity(intent);
+                    });
+                }
                 card.addView(tvPhoneNum);
 
                 TextView tvMsg = new TextView(this);
@@ -832,117 +917,113 @@ public class MainActivity extends AppCompatActivity {
                 final String       finalEmoji  = trafficEmoji;
                 final double       destLat     = lats.get(origIdx);
                 final double       destLon     = lons.get(origIdx);
-                final String       finalPhone  = (origIdx < lastPhones.size() ? lastPhones.get(origIdx) : "İletişim numarası yok");
+                final String       finalAddress = (origIdx < lastAddresses.size())
+                        ? lastAddresses.get(origIdx) : "Adres bilgisi yok";
 
                 card.setOnClickListener(v -> {
                     if (selectedCard != null && selectedCard != thisCard) {
-                        int prevDefaultBg = (int) selectedCard.getTag();
-                        GradientDrawable resetDrawable = new GradientDrawable();
-                        resetDrawable.setColor(prevDefaultBg);
-                        resetDrawable.setCornerRadius(24f);
-                        selectedCard.setBackground(resetDrawable);
-
-                        int prevTextColor = (prevDefaultBg == Color.parseColor("#3498db")) ? Color.WHITE : (isDarkMode ? Color.WHITE : Color.parseColor("#212121"));
+                        int prevBg = (int) selectedCard.getTag();
+                        GradientDrawable reset = new GradientDrawable();
+                        reset.setColor(prevBg);
+                        reset.setCornerRadius(24f);
+                        selectedCard.setBackground(reset);
+                        int prevText = (prevBg == Color.parseColor("#3498db")) ? Color.WHITE
+                                : (isDarkMode ? Color.WHITE : Color.parseColor("#212121"));
                         for (int j = 0; j < selectedCard.getChildCount(); j++) {
-                            if (selectedCard.getChildAt(j) instanceof TextView) {
-                                ((TextView) selectedCard.getChildAt(j)).setTextColor(prevTextColor);
-                            }
+                            if (selectedCard.getChildAt(j) instanceof TextView)
+                                ((TextView) selectedCard.getChildAt(j)).setTextColor(prevText);
                         }
                     }
 
-                    GradientDrawable selectedDrawable = new GradientDrawable();
-                    selectedDrawable.setColor(isDarkMode ? Color.parseColor("#252525") : Color.parseColor("#EEEEEE"));
-                    selectedDrawable.setCornerRadius(24f);
-                    selectedDrawable.setStroke(4, Color.parseColor("#3498db"));
-                    thisCard.setBackground(selectedDrawable);
-
+                    GradientDrawable sel = new GradientDrawable();
+                    sel.setColor(isDarkMode ? Color.parseColor("#252525") : Color.parseColor("#EEEEEE"));
+                    sel.setCornerRadius(24f);
+                    sel.setStroke(4, Color.parseColor("#3498db"));
+                    thisCard.setBackground(sel);
                     for (int j = 0; j < thisCard.getChildCount(); j++) {
-                        if (thisCard.getChildAt(j) instanceof TextView) {
-                            ((TextView) thisCard.getChildAt(j)).setTextColor(isDarkMode ? Color.WHITE : Color.parseColor("#212121"));
-                        }
+                        if (thisCard.getChildAt(j) instanceof TextView)
+                            ((TextView) thisCard.getChildAt(j))
+                                    .setTextColor(isDarkMode ? Color.WHITE : Color.parseColor("#212121"));
                     }
-
                     selectedCard = thisCard;
-                    llInfo.setVisibility(View.VISIBLE);
 
-                    tvInfoTitle.setText("⬅ Geri dön            📍 " + finalName);
+                    llInfo.setVisibility(View.VISIBLE);
+                    tvInfoTitle.setText("⬅ Geri dön            🏥 " + finalName);
                     tvInfoTitle.setTextSize(15);
                     tvInfoTitle.setTypeface(null, Typeface.BOLD);
-
                     tvInfoTitle.setOnClickListener(titleView -> {
                         llInfo.setVisibility(View.GONE);
                         if (selectedCard != null) {
                             int prevBg = (int) selectedCard.getTag();
-                            GradientDrawable reset = new GradientDrawable();
-                            reset.setColor(prevBg);
-                            reset.setCornerRadius(24f);
-                            selectedCard.setBackground(reset);
-
-                            int prevText = (prevBg == Color.parseColor("#3498db")) ? Color.WHITE : (isDarkMode ? Color.WHITE : Color.parseColor("#212121"));
+                            GradientDrawable resetD = new GradientDrawable();
+                            resetD.setColor(prevBg);
+                            resetD.setCornerRadius(24f);
+                            selectedCard.setBackground(resetD);
+                            int prevText = (prevBg == Color.parseColor("#3498db")) ? Color.WHITE
+                                    : (isDarkMode ? Color.WHITE : Color.parseColor("#212121"));
                             for (int j = 0; j < selectedCard.getChildCount(); j++) {
-                                if (selectedCard.getChildAt(j) instanceof TextView) {
+                                if (selectedCard.getChildAt(j) instanceof TextView)
                                     ((TextView) selectedCard.getChildAt(j)).setTextColor(prevText);
-                                }
                             }
                             selectedCard = null;
                         }
                         scrollView.smoothScrollTo(0, 0);
                     });
 
+                    String cleanInfoPhone = tvPhoneNum.getText().toString().replace("📞", "").trim();
+
                     tvInfoDetails.setGravity(Gravity.CENTER_VERTICAL);
                     tvInfoDetails.setLineSpacing(12f, 1.2f);
                     tvInfoDetails.setText(
-                            "Anayurt Bilgileri:\n" +
-                                    "🏠 Açık Adres: " + finalName + "\n" +
-                                    "📞 İletişim Hattı: " + finalPhone + "\n" +
+                            "🏥 Eczane: " + finalName + "\n" +
+                                    "📍 Adres: " + finalAddress + "\n" +
+                                    "📞 İletişim: " + cleanInfoPhone + "\n" +
                                     "🕐 Tahmini süre: " + finalMin + " dakika\n" +
                                     "🛣️ Yol mesafesi: " + String.format("%.1f", finalRoadKm) + " km\n" +
-                                    "📏 Düz mesafe: "   + String.format("%.1f", finalDistKm) + " km\n" +
-                                    "🚦 Trafik durumu: " + finalEmoji + "\n"
+                                    "📏 Düz mesafe: " + String.format("%.1f", finalDistKm) + " km\n" +
+                                    "🚦 Trafik durumu: " + finalEmoji + "\n" +
+                                    "⏰ Durum: Bugün nöbetçi ✅"
                     );
 
-                    if (llInfo.getChildCount() > 2) {
-                        llInfo.removeViewAt(2);
-                    }
+                    if (llInfo.getChildCount() > 2) llInfo.removeViewAt(2);
 
                     TextView btnNav = new TextView(MainActivity.this);
                     btnNav.setText("➔ CANLI NAVİGASYONU BAŞLAT");
                     btnNav.setTextColor(Color.WHITE);
-
                     GradientDrawable btnShape = new GradientDrawable();
                     btnShape.setColor(Color.parseColor("#4CAF50"));
                     btnShape.setCornerRadius(20f);
                     btnNav.setBackground(btnShape);
-
                     btnNav.setTextSize(15);
                     btnNav.setTypeface(null, Typeface.BOLD);
                     btnNav.setGravity(Gravity.CENTER);
                     btnNav.setPadding(0, 35, 0, 35);
-
-                    LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
-                    );
-                    btnParams.setMargins(20, 30, 20, 20);
-                    btnNav.setLayoutParams(btnParams);
-
+                    LinearLayout.LayoutParams navParams = new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                    navParams.setMargins(20, 30, 20, 20);
+                    btnNav.setLayoutParams(navParams);
                     btnNav.setOnClickListener(view -> {
-                        android.content.Intent intent = new android.content.Intent(
-                                android.content.Intent.ACTION_VIEW,
-                                android.net.Uri.parse("google.navigation:q=" + destLat + "," + destLon)
-                        );
-                        intent.setPackage("com.google.android.apps.maps");
-                        if (intent.resolveActivity(getPackageManager()) != null) {
-                            startActivity(intent);
+                        // google.navigation şeması doğrudan navigasyon modunu tetikler
+                        Uri gmmIntentUri = Uri.parse("google.navigation:q=" + destLat + "," + destLon);
+                        Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+
+                        // Google Haritalar uygulamasını hedef alıyoruz
+                        mapIntent.setPackage("com.google.android.apps.maps");
+
+                        // 🌟 KESİN ÇÖZÜM: Arka plandaki eski harita oturumunu ve kilitlenen konumları temizleyen bayraklar
+                        mapIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+
+                        // Güvenli çalıştırma kontrolü
+                        if (mapIntent.resolveActivity(getPackageManager()) != null) {
+                            startActivity(mapIntent);
                         } else {
-                            android.content.Intent webIntent = new android.content.Intent(
-                                    android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse("http://maps.google.com/maps?daddr=" + destLat + "," + destLon)
-                            );
-                            startActivity(webIntent);
+                            try {
+                                startActivity(mapIntent);
+                            } catch (android.content.ActivityNotFoundException e) {
+                                Toast.makeText(MainActivity.this, "Google Haritalar uygulaması yüklü değil!", Toast.LENGTH_LONG).show();
+                            }
                         }
                     });
-
                     llInfo.addView(btnNav);
                     llInfo.post(() -> scrollView.smoothScrollTo(0, llInfo.getTop()));
                 });
@@ -955,15 +1036,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == 100 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        if (requestCode == 100 && grantResults.length > 0
+                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             updateMapToUserLocation();
         }
     }
 
-    // SQLite Veritabanı ve Tablo Yönetimi
     private static class PharMapDatabase extends SQLiteOpenHelper {
-        private static final String DB_NAME = "pharmap_data.db";
-        private static final int DB_VERSION = 2; // Sık kullanılan konumlar için tablo eklendiğinden sürüm yükseltildi
+        private static final String DB_NAME    = "pharmap_data.db";
+        private static final int    DB_VERSION = 2;
 
         public PharMapDatabase(AppCompatActivity activity) {
             super(activity, DB_NAME, null, DB_VERSION);
@@ -971,34 +1052,30 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onCreate(SQLiteDatabase db) {
-            // Reçeteler Tablosu
-            db.execSQL("CREATE TABLE receteler (" +
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                    "recete_kod TEXT," +
-                    "eczane_adi TEXT," +
-                    "ilac_listesi TEXT)");
-
-            // Konumlar Tablosu
-            db.execSQL("CREATE TABLE konumlar (" +
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                    "baslik TEXT," +
-                    "adres TEXT)");
+            db.execSQL("CREATE TABLE receteler ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    + "recete_kod TEXT,"
+                    + "eczane_adi TEXT,"
+                    + "ilac_listesi TEXT)");
+            db.execSQL("CREATE TABLE konumlar ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    + "baslik TEXT,"
+                    + "adres TEXT)");
         }
 
         @Override
         public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             if (oldVersion < 2) {
-                db.execSQL("CREATE TABLE IF NOT EXISTS konumlar (" +
-                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                        "baslik TEXT," +
-                        "adres TEXT)");
+                db.execSQL("CREATE TABLE IF NOT EXISTS konumlar ("
+                        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                        + "baslik TEXT,"
+                        + "adres TEXT)");
             }
         }
 
-        // Eğer veritabanında hiç konum yoksa Ev ve İş'i otomatik ekleyen güvenlik fonksiyonu
         public void checkAndInsertDefaultLocations() {
-            SQLiteDatabase db = this.getWritableDatabase();
-            Cursor cursor = db.rawQuery("SELECT COUNT(*) FROM konumlar", null);
+            SQLiteDatabase db     = this.getWritableDatabase();
+            Cursor         cursor = db.rawQuery("SELECT COUNT(*) FROM konumlar", null);
             cursor.moveToFirst();
             int count = cursor.getInt(0);
             cursor.close();

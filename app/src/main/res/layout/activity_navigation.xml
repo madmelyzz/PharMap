@@ -1,19 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- TomTom Map for route display -->
+    <!-- Harita içeriğini barındıran container; içine webMapView eklendi -->
     <FrameLayout
         android:id="@+id/navigationMapContainer"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
 
-    <!-- TomTom NavigationFragment overlays here (turn-by-turn panel) -->
+        <!-- Eğer uygulamanız bir WebView kullanıyorsa: -->
+        <WebView
+            android:id="@+id/webMapView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Eğer MapView kullanıyorsanız üstteki WebView yerine şu satırı kullanın:
+        <com.google.android.gms.maps.MapView
+            android:id="@+id/webMapView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+        -->
+    </FrameLayout>
+
+    <!-- Fragment işlemleri için boş bırakılan container (fragment transaction hedefi) -->
     <FrameLayout
         android:id="@+id/navigationFragmentContainer"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <!-- UI öğeleri overlay olarak fragment'ların ve haritanın üstünde yer alır -->
+    <LinearLayout
+        android:id="@+id/llNavigationContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_gravity="bottom"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/tvNavigationStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Navigation status"
+            android:background="@android:color/white"
+            android:padding="8dp"
+            android:textColor="@android:color/black" />
+
+        <!-- Buraya isterseniz buton, progress bar vb. ekleyebilirsiniz -->
+    </LinearLayout>
 
 </FrameLayout>

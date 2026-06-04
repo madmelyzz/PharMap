@@ -1,3 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PharMap</string>
+    <string name="app_subtitle">En Hızlı Nöbetçi Eczaneyi Bulur</string>
+    <string name="btn_find">🏥 NÖBETÇİ ECZANE BUL</string>
+    <string name="getting_location">Konum alınıyor...</string>
+    <string name="searching_pharmacies">Eczaneler aranıyor...</string>
+    <string name="fastest_found">En hızlı rota hesaplandı!</string>
+    <string name="min">dk</string>
+    <string name="no_phone">Telefon Yok</string>
+    <string name="no_address">Adres Bilgisi Yok</string>
+    <string name="back">Geri</string>
+    <string name="back_to_home">🏠 Ana Sayfaya Dön</string>
+    <string name="location_permission_required">🔴 Konum izni verilmesi zorunludur.</string>
+    <string name="no_pharmacy_found">Etrafınızda eczane bulunamadı.</string>
+    <string name="pharmacies_found">%1$d adet eczane bulundu ve süresi hesaplanıyor...</string>
+    <string name="start_navigation">🚀 NAVİGASYONU BAŞLAT</string>
+
+    <string name="quick_locations_title">📌 Sık Kullanılan Konumlarım</string>
+    <string name="add_new_location">+ Yeni Konum Ekle</string>
+    <string name="saved_prescriptions">📑 Kayıtlı Reçetelerim</string>
+    <string name="add_prescription">+ Yeni Ekle</string>
+    <string name="prescription_no_label">Reçete No:</string>
+    <string name="pharmacy_label">Alındığı Eczane:</string>
+    <string name="medicines_label">İlaçlar:</string>
+    <string name="btn_delete">❌ Sil</string>
+    <string name="no_prescription">Kayıtlı reçete bulunamadı.</string>
+
+    <string name="dialog_add_location">Yeni Konum Ekle</string>
+    <string name="hint_label">Konum Başlığı (Örn: Ev, İş)</string>
+    <string name="hint_address">Tam Adres veya İlçe, İl</string>
+    <string name="save_location">Konumu Kaydet</string>
+    <string name="location_saved">Konum başarıyla kaydedildi.</string>
+    <string name="fill_fields">Lütfen tüm alanları doldurun!</string>
+    <string name="dialog_add_prescription">Yeni Reçete Kaydet</string>
+    <string name="hint_prescription_code">Reçete Kodu</string>
+    <string name="hint_pharmacy_name">Eczane Adı</string>
+    <string name="hint_medicines">İlaç Listesi</string>
+    <string name="save_prescription">Reçeteyi Kaydet</string>
+    <string name="prescription_saved">Reçete başarıyla kaydedildi.</string>
+    <string name="fill_required">Lütfen Reçete Kodu ve Eczane Adını doldurun!</string>
+    <string name="delete_prescription_title">Reçeteyi Sil</string>
+    <string name="delete_prescription_msg">Bu reçete kaydını silmek istediğinize emin misiniz?</string>
+    <string name="yes_delete">Evet, Sil</string>
+    <string name="prescription_deleted">Reçete silindi.</string>
+    <string name="cancel">İptal</string>
+    <string name="address_not_found">Adres bulunamadı: </string>
+    <string name="address_no_match">Bu adres koordinata dönüştürülemedi.</string>
+    <string name="address_parse_error">Adres analiz hatası oluştu.</string>
+
+    <string name="status_sunday">🔴 Bugün Pazar: Tüm normal eczaneler kapalıdır. Sadece nöbetçi eczanelere gidebilirsiniz! 🚨</string>
+    <string name="status_daytime">☀️ Gündüz Saati (09:00 - 18:00): Şu an normal eczaneler açıktır, buralara gidebilirsiniz. En yakınlar listeleniyor...</string>
+    <string name="status_night">🌙 Mesai Saati Dışı: Şu an sadece nöbetçi eczaneler açıktır! Size en yakın aktif nöbetçiler hesaplanıyor... 🚨</string>
+    <string name="status_default">Butona bas, eczaneler hesaplanıyor...</string>
+
+    <string name="info_pharmacy_label">🏥 Eczane: </string>
+    <string name="info_address_label">📍 Adres: </string>
+    <string name="info_phone_label">📞 İletişim: </string>
+    <string name="info_eta_label">🕒 Tahmini Süre: </string>
+    <string name="info_road_dist_label">🛣️ Yol Mesafesi: </string>
+    <string name="info_straight_dist_label">📏 Kuşuçuşu Mesafe: </string>
+    <string name="info_traffic_label">🚦 Trafik Durumu: </string>
+    <string name="info_status_label">⏰ Durum: Açık ✅</string>
+    <string name="fastest_label">EN HIZLI: </string>
+
+    <string name="traffic_fastest_not_nearest">En yakın eczane %1$.1f km uzakta, ama bu rota %2$d dk kazandırıyor! (Kuşuçuşu: %3$.1f km, Süre: %4$d dk)</string>
+    <string name="traffic_nearest_not_fastest">En yakın eczane bu (%1$.1f km, %2$d dk) fakat %3$d dk daha hızlı alternatif var!</string>
+    <string name="traffic_both">Hem en yakın hem en hızlı! (%1$.1f km, %2$d dk)</string>
+    <string name="traffic_heavy">Yolda yoğun trafik var! (%1$.1f km, %2$d dk)</string>
+    <string name="traffic_moderate">Yolda hafif trafik var! (%1$.1f km, %2$d dk)</string>
+    <string name="traffic_clear">Yol tamamen açık. (%1$.1f km, %2$d dk)</string>
 </resources>

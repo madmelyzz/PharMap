@@ -1,11 +1,5 @@
 package com.pharmap.models;
 
-/**
- * Represents a pharmacy with location, distance, and TomTom-calculated travel time.
- * The core insight: travelTimeInSeconds (from TomTom) is the real routing metric,
- * not raw distance. A closer pharmacy with heavy traffic may be slower than a
- * farther one with clear roads.
- */
 public class Pharmacy {
 
     private String id;
@@ -13,17 +7,21 @@ public class Pharmacy {
     private String address;
     private double latitude;
     private double longitude;
-    private double distanceKm;           // straight-line or road distance in km
-    private int travelTimeInSeconds;     // TomTom Routing API result (the key metric)
-    private String trafficStatus;        // "green", "yellow", "red"
+    private double distanceKm;
+    private int travelTimeInSeconds;
+    private String trafficStatus;
     private boolean isOpen24Hours;
     private String phoneNumber;
-    private boolean isSelected;          // true = fastest option recommended
+    private boolean isSelected;
 
-    // Traffic status constants
-    public static final String TRAFFIC_GREEN  = "green";   // Akıcı (Flowing)
-    public static final String TRAFFIC_YELLOW = "yellow";  // Orta (Moderate)
-    public static final String TRAFFIC_RED    = "red";     // Yoğun (Heavy)
+    // 🌟 YENİ: Saat ve Nöbetçi Alanları
+    private String openingTime = "09:00";
+    private String closingTime = "19:00";
+    private boolean isDuty = false;
+
+    public static final String TRAFFIC_GREEN  = "green";
+    public static final String TRAFFIC_YELLOW = "yellow";
+    public static final String TRAFFIC_RED    = "red";
 
     public Pharmacy() {}
 
@@ -34,53 +32,61 @@ public class Pharmacy {
         this.address   = address;
         this.latitude  = latitude;
         this.longitude = longitude;
-        this.travelTimeInSeconds = Integer.MAX_VALUE; // not yet fetched
+        this.travelTimeInSeconds = Integer.MAX_VALUE;
     }
 
-    // ─── Getters & Setters ────────────────────────────────────────────────
+    // 🌟 Dinamik Saat Kontrol Algoritması
+    public boolean isCurrentlyOpen() {
+        if (isOpen24Hours || isDuty) {
+            return true; // 24 saat açıksa veya nöbetçiyse daima açık kabul et
+        }
+        try {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault());
+            String currentTimeStr = sdf.format(new java.util.Date());
 
+            java.util.Date now = sdf.parse(currentTimeStr);
+            java.util.Date open = sdf.parse(openingTime);
+            java.util.Date close = sdf.parse(closingTime);
+
+            if (now.after(close) || now.before(open)) {
+                return false; // Saat 19:00 - 09:00 arasındaysa ve nöbetçi değilse kapalıdır
+            }
+            return true;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    // Getters & Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
-
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
-
     public double getLatitude() { return latitude; }
     public void setLatitude(double latitude) { this.latitude = latitude; }
-
     public double getLongitude() { return longitude; }
     public void setLongitude(double longitude) { this.longitude = longitude; }
-
     public double getDistanceKm() { return distanceKm; }
     public void setDistanceKm(double distanceKm) { this.distanceKm = distanceKm; }
-
     public int getTravelTimeInSeconds() { return travelTimeInSeconds; }
-    public void setTravelTimeInSeconds(int travelTimeInSeconds) {
-        this.travelTimeInSeconds = travelTimeInSeconds;
-    }
-
+    public void setTravelTimeInSeconds(int travelTimeInSeconds) { this.travelTimeInSeconds = travelTimeInSeconds; }
     public String getTrafficStatus() { return trafficStatus; }
-    public void setTrafficStatus(String trafficStatus) {
-        this.trafficStatus = trafficStatus;
-    }
-
+    public void setTrafficStatus(String trafficStatus) { this.trafficStatus = trafficStatus; }
     public boolean isOpen24Hours() { return isOpen24Hours; }
-    public void setOpen24Hours(boolean open24Hours) { isOpen24Hours = open24Hours; }
-
-    public String getPhoneNumber() { return phoneNumber; }
+    public void setOpen24Hours(boolean open24Hours) { this.isOpen24Hours = open24Hours; this.isDuty = open24Hours; }
+    public String getPhoneNumber() { return phoneNumber != null ? phoneNumber : "İletişim numarası yok"; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
-
     public boolean isSelected() { return isSelected; }
     public void setSelected(boolean selected) { isSelected = selected; }
+    public String getOpeningTime() { return openingTime; }
+    public void setOpeningTime(String openingTime) { this.openingTime = openingTime; }
+    public String getClosingTime() { return closingTime; }
+    public void setClosingTime(String closingTime) { this.closingTime = closingTime; }
+    public boolean isDuty() { return isDuty; }
+    public void setDuty(boolean duty) { isDuty = duty; }
 
-    // ─── Helper: human-readable travel time ───────────────────────────────
-
-    /**
-     * Returns a display string e.g. "7 dk" or "1 sa 5 dk"
-     */
     public String getFormattedTravelTime() {
         if (travelTimeInSeconds == Integer.MAX_VALUE) return "–";
         int minutes = travelTimeInSeconds / 60;
@@ -93,9 +99,6 @@ public class Pharmacy {
         }
     }
 
-    /**
-     * Returns a display string e.g. "1.2 km"
-     */
     public String getFormattedDistance() {
         return String.format("%.1f km", distanceKm);
     }
